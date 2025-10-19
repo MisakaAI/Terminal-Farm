@@ -8,7 +8,8 @@ A farm running on a terminal
 ```csharp
  ├── core/
  │    ├── player.py         # 玩家移动与交互
- │    ├── map.py            # 地图与世界逻辑
+ │    ├── world.py          # 地图与世界逻辑
+ │    ├── map_edit.py       # 地图编辑器
  │    ├── time.py           # 时间流逝、天数控制
  │    ├── save.py           # 存档
  │    ├── setting.py        # 设置
@@ -20,12 +21,11 @@ A farm running on a terminal
  │    └── __init__.py
  │
  ├── translation/
- │    ├── world.json
- │    ├── tile.json
- │    ├── crop.json
- │    ├── player.json
- │    ├── time_manager.json
- │    └── translation.json
+ │    ├── *.json            # 翻译文件
+ │    └── translator.py     # 翻译
+ │
+ ├── map/
+ │    └── *.npy             # 地图文件
  │
  ├── main.py                # 游戏主循环入口
  └── requirements.txt

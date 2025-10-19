@@ -3,7 +3,7 @@ import time
 from blessed import Terminal
 from core.save import load_save, save_game
 from core.player import Player
-from core.map import World
+from core.world import World
 from renderer.ascii_renderer import AsciiRenderer
 
 VIEW_W, VIEW_H = 50, 20
