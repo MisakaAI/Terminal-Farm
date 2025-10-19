@@ -1,0 +1,14 @@
+{
+    "zh-CN": {
+        "seasons": ["春", "夏", "秋", "冬"],
+        "weekdays": ["一", "二", "三", "四", "五", "六", "日"],
+        "day": "{season} {day}日",
+        "weekday": "{weekday}"
+    },
+    "en-US": {
+        "seasons": ["Spr", "Sum", "Aut", "Win"],
+        "weekdays": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+        "day": "{season} {day}",
+        "weekday": "{weekday}"
+    }
+}
