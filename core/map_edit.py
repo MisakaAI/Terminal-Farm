@@ -49,6 +49,89 @@ class Map:
         self.name = f.stem
         print(f"地图 {self.name} 已加载")
 
+    def show_help(self, term):
+        """显示帮助菜单"""
+        help_text = [
+            "终端地图编辑器操作说明",
+            "",
+            "方向键  ↑ ↓ ← → ：移动光标",
+            "Space ：选择区域起点 / 终点",
+            "Backspace ：清除区域选择",
+            "C ：修改字符",
+            "R ：修改颜色 (RGB, 例: 255 128 0)",
+            "T ：修改地形类型 (int)",
+            "P ：切换通行状态",
+            "S ：保存地图",
+            "/ ：跳转到坐标 (x y)",
+            "Q ：退出编辑器",
+            "",
+            "按任意键返回编辑界面...",
+        ]
+        print(term.home + term.clear)
+        for line in help_text:
+            print(term.green(line))
+        term.inkey()  # 等待任意键继续
+
+    def blocking_input(
+        self, term, prompt: str, default: str = "", maxlen: int = 50
+    ) -> str | None:
+        """阻塞式终端输入函数"""
+
+        buffer = default
+        print(
+            term.move(term.height - 1, 0) + term.clear_eol + f"{prompt}{buffer}",
+            end="",
+            flush=True,
+        )
+
+        try:
+            with term.hidden_cursor():
+                while True:
+                    key = term.inkey()
+                    if not key:
+                        continue
+
+                    # 回车确认
+                    if key.name == "KEY_ENTER":
+                        val = buffer.strip()
+                        return val if val else (default.strip() if default else None)
+
+                    # 取消输入
+                    elif key.name == "KEY_ESCAPE":
+                        print(
+                            term.move(term.height - 1, 0) + term.clear_eol,
+                            end="",
+                            flush=True,
+                        )
+                        return None
+
+                    # 删除
+                    elif key.name == "KEY_BACKSPACE":
+                        buffer = buffer[:-1]
+
+                    # 普通字符
+                    elif len(buffer) < maxlen and key.is_sequence is False:
+                        buffer += key
+
+                    # 刷新显示
+                    print(
+                        term.move(term.height - 1, 0)
+                        + term.clear_eol
+                        + f"{prompt}{buffer}",
+                        end="",
+                        flush=True,
+                    )
+        finally:
+            print(term.normal_cursor, end="")
+
+    def get_zone(self, region_start, region_end):
+        """计算矩形区域范围"""
+        y1, x1 = region_start
+        y2, x2 = region_end
+        ys = slice(min(y1, y2), max(y1, y2) + 1)
+        xs = slice(min(x1, x2), max(x1, x2) + 1)
+        return ys, xs
+
     def draw_viewport(
         self,
         term,
@@ -90,7 +173,7 @@ class Map:
                 char = view_chars[y, x]
                 # 显示光标位置 @
                 if top + y == cursor_y and left + x == cursor_x:
-                    char = term.white + "@"
+                    char = term.red + "@"
                 # 显示彩色
                 elif color:
                     r, g, b = view_colors[y, x]
@@ -116,7 +199,7 @@ class Map:
         term = Terminal()
         cursor_x, cursor_y = start_x, start_y
 
-        if view_w <= 0 or view_h <= -1:
+        if view_w <= 0 or view_h <= 0:
             view_w = term.width  # 终端列数（宽度）
             if term.height >= self.height:
                 view_h = self.height  # 地图高度
@@ -126,10 +209,6 @@ class Map:
         # 区域选择坐标，初始为 None
         region_start = None
         region_end = None
-
-        # 坐标跳转
-        goto_buffer = ""  # 输入缓冲
-        input_goto = False  # 是否在输入坐标
 
         col = max(0, term.width - len(path))  # 文件路径显示列
 
@@ -145,8 +224,18 @@ class Map:
                 region_start,
                 region_end,
             )
+
+            # 底部提示行
+            print(
+                term.move(term.height - 2, 0)
+                + term.clear_eol
+                + term.yellow("[Q]退出; [S]保存; [H]帮助;"),
+                end="",
+                flush=True,
+            )
+
             # 显示文件路径
-            print(term.move(term.height - 1, col) + path, end="", flush=True)
+            print(term.move(term.height - 1, col - 2) + term.clear_eol + f"[{path}]", end="", flush=True)
 
         with term.fullscreen(), term.cbreak(), term.hidden_cursor():
             # 绘制视口
@@ -157,69 +246,18 @@ class Map:
                     continue
 
                 # 启动坐标输入模式
-                if not input_goto and key == "/":
-                    input_goto = True
-                    goto_buffer = ""
-                    print(
-                        term.move(term.height - 1, 0)
-                        + "坐标: "
-                        + goto_buffer
-                        + " " * 10,
-                        end="",
-                        flush=True,
-                    )
-                    continue
-
-                # 坐标输入模式处理
-                if input_goto:
-                    if key.name == "KEY_ENTER":
-                        # 解析字符串
-                        parts = goto_buffer.strip().split()
-                        if len(parts) == 2 and all(p.isdigit() for p in parts):
-                            cursor_x, cursor_y = int(parts[0]), int(parts[1])
-                            # 限制在地图范围内
-                            cursor_x = min(max(cursor_x, 0), self.width - 1)
-                            cursor_y = min(max(cursor_y, 0), self.height - 1)
-                        input_goto = False
-                        goto_buffer = ""
-                        print(
-                            term.move(term.height - 1, 0) + " " * term.width,
-                            end="",
-                            flush=True,
-                        )
-                        refresh_view()
-                        continue
-                    elif key.name == "KEY_ESCAPE":
-                        # 取消
-                        input_goto = False
-                        goto_buffer = ""
-                        print(
-                            term.move(term.height - 1, 0) + " " * term.width,
-                            end="",
-                            flush=True,
-                        )
-                        refresh_view()
-                        continue
-                    elif key.name == "KEY_BACKSPACE":
-                        # 删除最后一个字符
-                        goto_buffer = goto_buffer[:-1]
-                    else:
-                        # 普通字符累积到缓冲
-                        goto_buffer += key
-
-                    # 在屏幕左下角显示输入
-                    print(
-                        term.move(term.height - 1, 0)
-                        + "坐标: "
-                        + goto_buffer
-                        + " " * 10,
-                        end="",
-                        flush=True,
-                    )
-                    continue  # 不做其他操作
+                if key == "/":
+                    coord = self.blocking_input(term, "跳转到坐标 (x y): ")
+                    if coord:
+                        try:
+                            x, y = map(int, coord.split())
+                            cursor_x = min(max(x, 0), self.width - 1)
+                            cursor_y = min(max(y, 0), self.height - 1)
+                        except:
+                            pass
 
                 # 移动光标
-                if key.name == "KEY_UP":
+                elif key.name == "KEY_UP":
                     cursor_y = max(0, cursor_y - 1)
                 elif key.name == "KEY_DOWN":
                     cursor_y = min(self.height - 1, cursor_y + 1)
@@ -252,11 +290,7 @@ class Map:
                     char = term.inkey(timeout=None)
                     if char:
                         if region_start and region_end:
-                            # 计算矩形区域
-                            y1, x1 = region_start
-                            y2, x2 = region_end
-                            ys = slice(min(y1, y2), max(y1, y2) + 1)
-                            xs = slice(min(x1, x2), max(x1, x2) + 1)
+                            ys, xs = self.get_zone(region_start, region_end)
                             self.tiles[ys, xs, 0] = char  # 批量修改
                         else:
                             # 单格修改
@@ -264,29 +298,21 @@ class Map:
 
                 # 修改颜色
                 elif key.upper() == "R":
-                    print(
-                        term.move(term.height - 1, 0)
-                        + "输入颜色 RGB (如 255,0,0) 或直接回车设置为-1: ",
-                        end="",
-                        flush=True,
+                    v = self.blocking_input(
+                        term, "输入颜色 RGB: "
                     )
-                    v = input().strip()
-                    if not v:
+                    if v is None or not v.strip():
                         r, g, b = -1, -1, -1
                     else:
                         try:
-                            parts = [int(p.strip()) for p in v.split()]
-                            if len(parts) != 3:
-                                raise ValueError
-                            r, g, b = parts
+                            parts = [int(p) for p in v.replace(",", " ").split()]
+                            r, g, b = parts if len(parts) == 3 else (-1, -1, -1)
                         except:
                             r, g, b = -1, -1, -1
+
                     # 批量修改区域或单格
                     if region_start and region_end:
-                        y1, x1 = region_start
-                        y2, x2 = region_end
-                        ys = slice(min(y1, y2), max(y1, y2) + 1)
-                        xs = slice(min(x1, x2), max(x1, x2) + 1)
+                        ys, xs = self.get_zone(region_start, region_end)
                         self.tiles[ys, xs, 3:6] = [r, g, b]
                     else:
                         self.tiles[cursor_y, cursor_x, 3:6] = [r, g, b]
@@ -294,31 +320,24 @@ class Map:
                 # 切换通行状态
                 elif key.upper() == "P":
                     if region_start and region_end:
-                        y1, x1 = region_start
-                        y2, x2 = region_end
-                        ys = slice(min(y1, y2), max(y1, y2) + 1)
-                        xs = slice(min(x1, x2), max(x1, x2) + 1)
+                        ys, xs = self.get_zone(region_start, region_end)
                         self.tiles[ys, xs, 1] ^= 1
                     else:
                         self.tiles[cursor_y, cursor_x, 1] ^= 1
 
                 # 修改地形
                 elif key.upper() == "T":
-                    print(
-                        term.move(term.height - 1, 0) + "输入地形类型(int): ",
-                        end="",
-                        flush=True,
-                    )
-                    t = input()
-                    if t.isdigit():
+                    t = self.blocking_input(term, "输入地形类型(int): ")
+                    if t and t.isdigit():
                         if region_start and region_end:
-                            y1, x1 = region_start
-                            y2, x2 = region_end
-                            ys = slice(min(y1, y2), max(y1, y2) + 1)
-                            xs = slice(min(x1, x2), max(x1, x2) + 1)
+                            ys, xs = self.get_zone(region_start, region_end)
                             self.tiles[ys, xs, 2] = int(t)
                         else:
                             self.tiles[cursor_y, cursor_x, 2] = int(t)
+
+                # 显示帮助菜单
+                elif key.upper() == "H":
+                    self.show_help(term)
 
                 # 保存
                 elif key.upper() == "S":
