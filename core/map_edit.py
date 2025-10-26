@@ -1,3 +1,6 @@
+# core/map_edit.py
+# 地图编辑器
+
 import numpy as np
 from pathlib import Path
 from blessed import Terminal
@@ -15,15 +18,15 @@ class Map:
         self.width = width
         self.height = height
         self.name = name
-        self.tiles = np.empty((height, width, 6), dtype=object)
+        self.tiles = np.empty((height, width, 6), dtype=int)
 
-        self.tiles[:, :, 0] = " "  # 字符
+        self.tiles[:, :, 0] = ord(" ")  # 字符，存为 Unicode 整数
         self.tiles[:, :, 1] = 1  # 可通行
         self.tiles[:, :, 2] = 1  # 地形
         self.tiles[:, :, 3:6] = -1  # 颜色
 
         # 设置地图边缘和对应值
-        edges = [(0, "#"), (1, 0), (3, 150), (4, 150), (5, 150)]
+        edges = [(0, ord("#")), (1, 0), (3, 150), (4, 150), (5, 150)]
         for channel, value in edges:
             self.tiles[0, :, channel] = value
             self.tiles[-1, :, channel] = value
@@ -164,13 +167,14 @@ class Map:
 
         # 一次性裁剪出视口区域
         view = self.tiles[top : top + view_h, left : left + view_w]
-        view_chars = view[:, :, 0].astype(str)
+        view_chars = view[:, :, 0].astype(int)
         view_colors = view[:, :, 3:6].astype(int)
 
         for y in range(view_chars.shape[0]):
             row_str = ""
             for x in range(view_chars.shape[1]):
-                char = view_chars[y, x]
+                char_code = view_chars[y, x]  # 取整数
+                char = chr(char_code)  # 转为字符
                 # 显示光标位置 @
                 if top + y == cursor_y and left + x == cursor_x:
                     char = term.red + "@"
@@ -195,7 +199,7 @@ class Map:
         print(f"可通行: {bool(P)}" + " " * 5)
         print(f"地形类型: {T}" + " " * 5)
 
-    def run_editor(self, path, start_x=0, start_y=0, view_w=50, view_h=20, color=True):
+    def run_editor(self, path, start_x=0, start_y=0, view_w=0, view_h=20, color=True):
         term = Terminal()
         cursor_x, cursor_y = start_x, start_y
 
@@ -235,7 +239,11 @@ class Map:
             )
 
             # 显示文件路径
-            print(term.move(term.height - 1, col - 2) + term.clear_eol + f"[{path}]", end="", flush=True)
+            print(
+                term.move(term.height - 1, col - 2) + term.clear_eol + f"[{path}]",
+                end="",
+                flush=True,
+            )
 
         with term.fullscreen(), term.cbreak(), term.hidden_cursor():
             # 绘制视口
@@ -291,16 +299,14 @@ class Map:
                     if char:
                         if region_start and region_end:
                             ys, xs = self.get_zone(region_start, region_end)
-                            self.tiles[ys, xs, 0] = char  # 批量修改
+                            self.tiles[ys, xs, 0] = ord(char)  # 批量修改
                         else:
                             # 单格修改
-                            self.tiles[cursor_y, cursor_x, 0] = char
+                            self.tiles[cursor_y, cursor_x, 0] = ord(char)
 
                 # 修改颜色
                 elif key.upper() == "R":
-                    v = self.blocking_input(
-                        term, "输入颜色 RGB: "
-                    )
+                    v = self.blocking_input(term, "输入颜色 RGB: ")
                     if v is None or not v.strip():
                         r, g, b = -1, -1, -1
                     else:

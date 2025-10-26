@@ -1,7 +1,18 @@
+# translation/translator.py
+# 翻译
+
 import json
 from pathlib import Path
 
+
 class Translator:
+    """
+    翻译器
+    - 自动加载 translation 目录下的 JSON 文件
+    - 提供 get_list() 获取数组类型翻译
+    - 提供 t() 获取字符串模板翻译并可格式化
+    """
+
     def __init__(self, lang="zh-CN"):
         self.lang = lang
         self.translations = {}
@@ -23,27 +34,22 @@ class Translator:
             except json.JSONDecodeError:
                 print(f"无法解析 {json_file.name}，不是有效的 JSON")
 
-        time_path = Path("translation/time.json")
-        if time_path.exists():
-            self.translations["time"] = json.loads(time_path.read_text(encoding="utf-8"))
-        else:
-            self.translations["time"] = {}
-
-        # 加载 setting.json
-        setting_path = Path("translation/setting.json")
-        if setting_path.exists():
-            self.translations["setting"] = json.loads(setting_path.read_text(encoding="utf-8"))
-        else:
-            self.translations["setting"] = {}
-
     def get_list(self, category, key):
-        """获取数组类型的翻译，例如 seasons 或 weekdays"""
+        """
+        获取数组类型的翻译
+        :param category: JSON 文件分类
+        :param key: 对应键
+        :return: 数组，如果不存在返回空列表
+        """
         return self.translations.get(category, {}).get(self.lang, {}).get(key, [])
 
     def t(self, category, key, **kwargs):
         """
-        category: "time_manager" 或 "setting"
-        key: day / label 等
+        获取字符串类型翻译并可格式化
+        :param category: JSON 文件分类
+        :param key: 对应键
+        :param kwargs: 用于格式化字符串的参数
+        :return: 翻译后的字符串，找不到返回 key 和参数信息
         """
         template = self.translations.get(category, {}).get(self.lang, {}).get(key, "")
         return template.format(**kwargs) if template else f"{key}: {kwargs}"

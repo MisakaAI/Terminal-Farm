@@ -5,14 +5,14 @@ A farm running on a terminal
 
 ## 项目结构
 
-```csharp
+```txt
  ├── core/
- │    ├── player.py         # 玩家移动与交互
- │    ├── world.py          # 地图与世界逻辑
- │    ├── map_edit.py       # 地图编辑器
- │    ├── time.py           # 时间流逝、天数控制
+ │    ├── player.py         # 玩家
+ │    ├── world.py          # 世界地图
+ │    ├── map_edit.py       @ 地图编辑器
+ │    ├── time.py           # 时间日期
  │    ├── save.py           # 存档
- │    ├── setting.py        # 设置
+ │    ├── setting.py        @ 设置
  │    └── __init__.py
  │
  ├── renderer/
@@ -22,7 +22,8 @@ A farm running on a terminal
  │
  ├── translation/
  │    ├── *.json            # 翻译文件
- │    └── translator.py     # 翻译
+ │    ├── translator.py     # 翻译
+ │    └── __init__.py
  │
  ├── map/
  │    └── *.npy             # 地图文件
@@ -30,6 +31,9 @@ A farm running on a terminal
  ├── main.py                # 游戏主循环入口
  └── requirements.txt
 ```
+
+使用 `@` 注释的，为独立运行组件。
+例如：使用 `python core/map_edit.py` 打开地图编辑器。
 
 ## Install && Depend
 
