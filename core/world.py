@@ -1,5 +1,6 @@
 # core/world.py
 import numpy as np
+from pathlib import Path
 
 """
 [地图系统]
@@ -21,38 +22,49 @@ import numpy as np
 """
 
 class World:
-    def __init__(self):
-        self.width = 0
-        self.height = 0
-        self.name = ""
-        self.tiles = None
+    """
+    地图系统
+    - 加载 .npy 地图文件
+    - 提供基本的读取与视口（viewport）功能
+    """
 
-    def is_walkable(self, x, y):
-        return 0 <= x < self.width and 0 <= y < self.height
+    def __init__(self, map_path: str):
+        f = Path(map_path)
+        if not f.exists():
+            raise FileNotFoundError(f"地图文件不存在: {f}")
 
-    def get_viewport(self, center_x, center_y, view_w, view_h):
+        self.tiles = np.load(f, allow_pickle=True)
+        self.height, self.width = self.tiles.shape[:2]
+        self.name = f.stem
+
+    def is_walkable(self, x: int, y: int) -> bool:
+        """判断坐标是否可通行"""
+        if 0 <= x < self.width and 0 <= y < self.height:
+            return bool(self.tiles[y, x, 1])
+        return False
+
+    def get_tile(self, x: int, y: int):
+        """获取单个格子数据"""
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return None
+        return self.tiles[y, x]
+
+    def get_viewport(self, center_x: int, center_y: int, view_w: int, view_h: int):
         """
-        返回 viewport 字符列表（每行字符串），以 (center_x,center_y) 为中心。
-        当玩家靠近边界时，视口贴边。
+        获取以 (center_x, center_y) 为中心的地图视口数据。
+
+        返回：
+            lines: list[str] —— 每行的字符拼接成字符串
+            left, top: int —— 视口左上角在地图中的坐标
         """
         half_w = view_w // 2
         half_h = view_h // 2
 
-        left = center_x - half_w
-        top = center_y - half_h
-
-        # clamp to world bounds
-        if left < 0:
-            left = 0
-        if top < 0:
-            top = 0
-        if left + view_w > self.width:
-            left = max(0, self.width - view_w)
-        if top + view_h > self.height:
-            top = max(0, self.height - view_h)
+        left = max(0, min(self.width - view_w, center_x - half_w))
+        top = max(0, min(self.height - view_h, center_y - half_h))
 
         lines = []
         for y in range(top, top + view_h):
-            # join slice for speed
-            lines.append("".join(self.tiles[y][left:left + view_w]))
+            chars = self.tiles[y, left : left + view_w, 0]
+            lines.append("".join(chars))
         return lines, left, top
